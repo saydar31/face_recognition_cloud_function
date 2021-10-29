@@ -50,12 +50,13 @@ def handler(event, context):
             aws_secret_access_key=os.getenv('aws_secret'),
             endpoint_url='https://storage.yandexcloud.net'
         )
-        # sqs = boto3.client(
-        #     service_name='sqs',
-        #     aws_access_key_id=os.getenv('aws_id'),
-        #     aws_secret_access_key=os.getenv('aws_secret'),
-        #     endpoint_url='https://message-queue.api.cloud.yandex.net'
-        # )
+        sqs = boto3.client(
+            service_name='sqs',
+            aws_access_key_id=os.getenv('aws_id'),
+            aws_secret_access_key=os.getenv('aws_secret'),
+            endpoint_url='https://message-queue.api.cloud.yandex.net',
+            region_name='ru-central1'
+        )
         for message in event['messages']:
             details = message['details']
             if (str(details['object_id']).endswith('.jpg') | str(details['object_id']).endswith('.png')) \
@@ -73,7 +74,10 @@ def handler(event, context):
                     crop_and_save(face['face_rectangle'], file, s3, bucket_id, name + '_face_' + str(i) + '.' + ext)
                     new_faces.append(new_object)
                 if new_faces:
-                    print(new_faces)
+                    sqs.send_message(
+                        QueueUrl=os.getenv('queue_url'),
+                        MessageBody=str(new_faces)
+                    )
 
     except BaseException as e:
         print(e)
@@ -81,16 +85,3 @@ def handler(event, context):
         'statusCode': 200,
         'body': 'Hello World!',
     }
-
-
-the_event = {
-    'messages': [
-        {
-            'details': {
-                'object_id': 'image_file.jpg',
-                'bucket_id': 'd40.itiscl.ru'
-            }
-        }
-    ]
-}
-
